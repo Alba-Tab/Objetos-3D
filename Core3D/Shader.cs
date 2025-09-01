@@ -69,7 +69,12 @@ namespace Proyecto_3D.Core3D
             int loc = GL.GetUniformLocation(Handle, name);
             GL.Uniform3(loc, v);
         }
-
+        public void SetVector4(string name, Vector4 v)
+        {
+            GL.UseProgram(Handle);
+            int loc = GL.GetUniformLocation(Handle, name);
+            GL.Uniform4(loc, v);
+        }
         public void Dispose()
         {
             Dispose(true);
