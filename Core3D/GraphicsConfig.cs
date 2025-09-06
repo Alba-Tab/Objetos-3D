@@ -14,7 +14,7 @@ namespace Proyecto_3D.Core3D
             // Back-face culling habilitado para mejor rendimiento
             GL.Enable(EnableCap.CullFace);
             GL.CullFace(TriangleFace.Back);
-            GL.FrontFace(FrontFaceDirection.Ccw);
+            GL.FrontFace(FrontFaceDirection.Cw);
 
             // Polygon offset SOLO para el relleno (evita z-fighting con el contorno)
             GL.Enable(EnableCap.PolygonOffsetFill);
@@ -25,17 +25,12 @@ namespace Proyecto_3D.Core3D
             GL.Enable(EnableCap.Multisample);
         }
 
-        /// <summary>
-        /// Establece el color de fondo de la ventana
-        /// </summary>
+
         public static void SetBackgroundColor(float r, float g, float b, float a = 1.0f)
         {
             GL.ClearColor(r, g, b, a);
         }
 
-        /// <summary>
-        /// Configuración predeterminada con fondo gris oscuro
-        /// </summary>
         public static void InicializarGLDefault()
         {
             InicializarOpenGl();

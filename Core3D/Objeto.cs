@@ -1,94 +1,110 @@
-﻿
-using OpenTK.Mathematics;
+﻿using OpenTK.Mathematics;
 
 namespace Proyecto_3D.Core3D
 {
-    internal class Objeto
+    internal class Objeto : IDisposable
     {
-        private readonly Dictionary<int, Figura> _figuras;
-        
-        private Vector3 _centro { get; set; }
+        private readonly Dictionary<int, Cara> _caras = new();
+        private int _nextId = 1;
+        public IReadOnlyDictionary<int, Cara> Caras => _caras; 
+        private Vector3 _centro;
         public Vector3 Posicion;
-        public Vector3 Rotacion = Vector3.Zero;
-        public Vector3 Dimensiones;
-        
-        public Objeto(Dictionary<int, Figura> figuras, Vector3 centro)
+        public Vector3 RotacionDeg = Vector3.Zero; // en grados
+        public Vector3 Dimensiones = Vector3.One;
+        public bool    Visible    = true;
+
+        public int CantidadCaras => _caras.Count;
+
+        public Objeto(Dictionary<int, Cara>? caras, Vector3 centro)
         {
-            _figuras = figuras ?? new Dictionary<int, Figura>();
-            _centro = centro;
-            Posicion = centro;
-            Dimensiones = Vector3.One;
+            if (caras != null)
+            {
+                foreach (var kv in caras)
+                {
+                    _caras[kv.Key] = kv.Value;
+                    _nextId = Math.Max(_nextId, kv.Key + 1);
+                }
+            }
+            _centro   = centro;
+            Posicion  = centro; 
+        }
+
+        public int AddCara(Cara cara)
+        {
+            int id = _nextId++;
+            _caras[id] = cara;
+            return id;
+        }
+
+        public void AddCaras(IEnumerable<Cara> caras)
+        {
+            foreach (var c in caras) AddCara(c);
+        }
+
+        public bool TryGetCara(int key, out Cara cara) => _caras.TryGetValue(key, out cara!);
+        public Cara GetCara(int key) => _caras[key];
+
+        public void RemoveCara(int key)
+        {
+            if (_caras.Remove(key, out var c)) c.Dispose();
         }
 
 
-        public void AgregarFigura(int key, Figura figura)
+        public Vector3 GetCentro() => _centro;
+        public void    SetCentro(Vector3 c) => _centro = c;
+
+
+        public void SetColorCara(int key, Vector4 color)
         {
-            _figuras.Add(key, figura);
-        }
-        public Figura GetFigura(int key)
-        {
-            return _figuras[key];
+            if (_caras.TryGetValue(key, out var cara))
+                cara.SetColor(color);
         }
 
-        public Cara GetCara(int key)
+        public void SetColorTodas(Vector4 color)
         {
-            var figura = _figuras[key];
-            return figura.Caras.FirstOrDefault() ?? throw new InvalidOperationException($"No hay caras en la figura {key}");
+            foreach (var cara in _caras.Values)
+                cara.SetColor(color);
         }
 
-        public Vector3 GetCentro()
-        {
-            return _centro;
-        }
+        public void Draw(Shader shader) => Draw(shader, Matrix4.Identity);
 
-        public void SetCentro(Vector3 c)
+        public void Draw(Shader shader, Matrix4 parent)
         {
-            _centro = c;
-        }
+            if (!Visible || _caras.Count == 0) return;
 
-        public void SetColorFigura(int key, Vector4 color)
-        {
-            if (_figuras.ContainsKey(key))  _figuras[key].Color = color;
-        }
-
-        public void SetColor(int key, Vector4 color)
-        {
-            SetColorFigura(key, color);
-        }
-
-        public void Draw(Shader shader)
-        {
             var T  = Matrix4.CreateTranslation(Posicion);
-            var RX = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(Rotacion.X));
-            var RY = Matrix4.CreateRotationY(MathHelper.DegreesToRadians(Rotacion.Y));
-            var RZ = Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(Rotacion.Z));
+            var RX = Matrix4.CreateRotationX(MathHelper.DegreesToRadians(RotacionDeg.X));
+            var RY = Matrix4.CreateRotationY(MathHelper.DegreesToRadians(RotacionDeg.Y));
+            var RZ = Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(RotacionDeg.Z));
             var S  = Matrix4.CreateScale(Dimensiones);
 
-            var model = T * RX * RY * RZ * S;
+            var local = T * RZ * RY * RX * S;
+            var model = parent * local;
 
-            foreach (var figura in _figuras.Values)
-                figura.Draw(shader, model);
+            shader.Use();
+
+            foreach (var cara in _caras.Values)
+                cara.Draw(shader, model);
         }
 
         public Vector3 CalcularCentroMasa()
         {
+            if (_caras.Count == 0) return Vector3.Zero;
             Vector3 suma = Vector3.Zero;
-            int totalCaras = 0;
-            
-            foreach (var figura in _figuras.Values)
-                foreach (var cara in figura.Caras)
-                {
-                    suma += cara.CalcularCentroMasa();
-                    totalCaras++;
-                }
-
-             return (totalCaras > 0) ? (suma / totalCaras) : suma;
+            int n = 0;
+            foreach (var cara in _caras.Values)
+            {
+                suma += cara.CalcularCentroMasa();
+                n++;
+            }
+            return (n > 0) ? (suma / n) : Vector3.Zero;
         }
 
         public void Dispose()
         {
-            foreach (var figura in _figuras.Values) figura.Dispose();
+            foreach (var cara in _caras.Values)
+                cara.Dispose();
+            _caras.Clear();
         }
-        public int CantidadFiguras => _figuras.Count;
     }
 }

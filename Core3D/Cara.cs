@@ -1,65 +1,114 @@
-﻿
-using OpenTK.Mathematics;
+﻿using OpenTK.Mathematics;
 
 namespace Proyecto_3D.Core3D
 {
-    internal class Cara
+    internal class Cara : IDisposable
     {
-        private Dictionary<int, Triangulo> _triangulos= new();
-        private int _nextId = 1;
-        private Vector3 Centro;
-        public Vector4 Color { get; set; } = new Vector4(1f, 1f, 1f, 1f);
+        private readonly List<Triangulo> _tris = new();
+        private Mesh? _mesh;
 
+        public Vector4 Color = new(1,1,1,1);
+        public bool   DrawEdges= false;
+        public float  EdgeLineWidth = 2f;
+        public Vector4 EdgeColor = new(0f, 0f, 0f, 1f);
+        public IReadOnlyList<Triangulo> Triangulos => _tris;
 
-        public void Add(Triangulo triangulo)
+        public void Add(Triangulo t)
         {
-            _triangulos.Add(_nextId, triangulo);
-            _nextId++;
+            _tris.Add(t);
+            ReconstruirBuffers();
         }
-        public Triangulo GetTriangulo(int key)
-        {
-            return _triangulos[key];
-        }
-        public void SetCentro(Vector3 c)
-        {
-            Centro = c;
-        }
-        public void SetColor(int key, Vector4 color)
+
+        public void SetColor (Vector4 color)
         {
             Color = color;
-            _triangulos[key].Color = color;
         }
-        
-        public void SetColor(Vector4 color)
+
+        public void AddRange(IEnumerable<Triangulo> ts)
         {
-            Color = color;
-            foreach (var triangulo in _triangulos.Values)
+            _tris.AddRange(ts);
+            ReconstruirBuffers();
+        }
+
+        private void ReconstruirBuffers()
+        {
+            _mesh?.Dispose();
+            _mesh = null;
+
+            if (_tris.Count == 0) return;
+
+            var positions = new List<float>(_tris.Count * 9);
+            var triIndices = new List<uint>(_tris.Count * 3);
+            var edgeSet = new HashSet<(uint, uint)>(); // Para almacenar aristas únicas
+            uint baseIndex = 0;
+
+            foreach (var t in _tris)
             {
-                triangulo.Color = color;
+                // posiciones
+                positions.Add(t.A.X); positions.Add(t.A.Y); positions.Add(t.A.Z);
+                positions.Add(t.B.X); positions.Add(t.B.Y); positions.Add(t.B.Z);
+                positions.Add(t.C.X); positions.Add(t.C.Y); positions.Add(t.C.Z);
+
+                // triángulos
+                triIndices.Add(baseIndex + 0);
+                triIndices.Add(baseIndex + 1);
+                triIndices.Add(baseIndex + 2);
+
+                // aristas
+                AddEdge(edgeSet, baseIndex + 0, baseIndex + 1);
+                AddEdge(edgeSet, baseIndex + 1, baseIndex + 2);
+                AddEdge(edgeSet, baseIndex + 2, baseIndex + 0);
+
+                baseIndex += 3;
+            }
+
+            // Convertir el conjunto de aristas únicas a una lista de índices
+            var edgeIdx = new List<uint>(edgeSet.Count * 2);
+            foreach (var (start, end) in edgeSet)
+            {
+                edgeIdx.Add(start);
+                edgeIdx.Add(end);
+            }
+
+            _mesh = new Mesh(positions.ToArray(), triIndices.ToArray(), edgeIdx.ToArray());
+        }
+
+        private void AddEdge(HashSet<(uint, uint)> edgeSet, uint start, uint end)
+        {
+            var edge = (start < end) ? (start, end) : (end, start);
+            if (!edgeSet.Contains(edge))
+            {
+                edgeSet.Add(edge);
             }
         }
-        public void Draw(Shader shader, Matrix4 parent)
+
+        public void Draw(Shader shader, Matrix4 model)
         {
-            foreach (var triangulo in _triangulos.Values)
+            if (_mesh == null) return;
+
+            shader.SetMatrix4("model", model);
+            shader.SetVector4("uColor", Color);
+            _mesh.DrawTriangles();
+
+            if (DrawEdges)
             {
-                triangulo.Draw(shader, parent);
+                shader.SetVector4("uColor", EdgeColor);
+                _mesh.DrawLines(EdgeLineWidth);
             }
         }
+
         public Vector3 CalcularCentroMasa()
         {
-            Vector3 suma = Vector3.Zero;
-            foreach (var triangulo in _triangulos.Values)
-                suma += triangulo.CalcularCentro();
-
-            if (_triangulos.Count > 0) suma /= _triangulos.Count;
-
-            return suma;
+            if (_tris.Count == 0) return Vector3.Zero;
+            Vector3 sum = Vector3.Zero;
+            foreach (var t in _tris) sum += t.Centro();
+            return sum / _tris.Count;
         }
 
         public void Dispose()
         {
-            foreach (var triangulo in _triangulos.Values)
-                triangulo.Dispose();    
+            _mesh?.Dispose();
+            _mesh = null;
         }
     }
 }

@@ -1,5 +1,4 @@
 ﻿using OpenTK.Graphics.OpenGL4;
-using OpenTK.Mathematics;
 
 namespace Proyecto_3D.Core3D
 {
@@ -10,7 +9,7 @@ namespace Proyecto_3D.Core3D
         private int _lineCount = 0;
         private bool _disposed;
 
-        public Mesh(float[] vertices, uint[] triangleIndices, uint[] lineIndices = null)
+        public Mesh(float[] vertices, uint[] triangleIndices, uint[]? lineIndices = null)
         {
             // --- VAO de sólidos ---
             vaoSolid = GL.GenVertexArray();
@@ -74,7 +73,10 @@ namespace Proyecto_3D.Core3D
             // enlazar el VAO de aristas y dibujar los elementos
             if (_lineCount == 0 || vaoEdges == 0) return;
             GL.BindVertexArray(vaoEdges);
+
+            // Asegurar que el ancho de línea sea visible
             GL.LineWidth(lineWidth);
+
             GL.DrawElements(PrimitiveType.Lines, _lineCount, DrawElementsType.UnsignedInt, 0);
         }
         public void Dispose()
