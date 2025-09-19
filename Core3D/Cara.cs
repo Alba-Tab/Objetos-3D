@@ -1,114 +1,97 @@
-﻿using OpenTK.Mathematics;
+﻿// File: Proyecto_3D/Core3D/Cara.cs
+using System;
+using System.Collections.Generic;
+using OpenTK.Mathematics;
+using OpenTK.Graphics.OpenGL4;
 
 namespace Proyecto_3D.Core3D
 {
-    internal class Cara : IDisposable
+    public class Cara : IDisposable
     {
-        private readonly List<Triangulo> _tris = new();
+        public string Name { get; set; }
+        public Transform Transform;
+        public Objeto? Padre { get; set; }
+        public Dictionary<int, Triangulo> Hijos { get; } = new();
+
+        // Por qué: el serializer necesita acceder a la geometría
+        private float[] _vertices;
+        private uint[] _triangles;
+        private uint[] _edges;
+
         private Mesh? _mesh;
+        private Vector4 _color = new(1, 1, 1, 1);
+        private int _nextId = 1;
+        private bool _disposed = false;
 
-        public Vector4 Color = new(1,1,1,1);
-        public bool   DrawEdges= false;
-        public float  EdgeLineWidth = 2f;
-        public Vector4 EdgeColor = new(0f, 0f, 0f, 1f);
-        public IReadOnlyList<Triangulo> Triangulos => _tris;
+        public float EdgeWidth { get; set; } = 1.75f;
 
-        public void Add(Triangulo t)
+        public Cara(string name, float[] vertices, uint[] triangleIndices, uint[]? lineIndices = null, Objeto? padre = null)
         {
-            _tris.Add(t);
-            ReconstruirBuffers();
+            Name = name;
+            Transform = new Transform();
+            if (padre != null) Padre = padre;
+
+            _vertices = vertices ?? Array.Empty<float>();
+            _triangles = triangleIndices ?? Array.Empty<uint>();
+            _edges = lineIndices ?? Array.Empty<uint>();
+
+            _mesh = new Mesh(_vertices, _triangles, _edges);
         }
 
-        public void SetColor (Vector4 color)
+        // Getters requeridos por el serializer “completo”
+        public float[] GetVertices()  => _vertices;
+        public uint[]  GetTriangles() => _triangles;
+        public uint[]  GetEdges()     => _edges;
+        public Vector4 GetColor()     => _color;
+
+        public void SetColor(Vector4 color) => _color = color;
+
+        public void Add(Triangulo triangulo)
         {
-            Color = color;
+            triangulo.Padre = this;
+            Hijos.Add(_nextId++, triangulo);
         }
 
-        public void AddRange(IEnumerable<Triangulo> ts)
+        public Matrix4 WorldMatrix()
         {
-            _tris.AddRange(ts);
-            ReconstruirBuffers();
+            var local = Transform.LocalMatrix();
+            return Padre != null ? Padre.WorldMatrix() * local : local;
         }
 
-        private void ReconstruirBuffers()
+        public void Draw(Shader shader, Matrix4 viewProjection)
         {
-            _mesh?.Dispose();
-            _mesh = null;
+            EnsureMesh(); // Por qué: al deserializar puedes rearmar la cara sin GL vivo
 
-            if (_tris.Count == 0) return;
-
-            var positions = new List<float>(_tris.Count * 9);
-            var triIndices = new List<uint>(_tris.Count * 3);
-            var edgeSet = new HashSet<(uint, uint)>(); // Para almacenar aristas únicas
-            uint baseIndex = 0;
-
-            foreach (var t in _tris)
-            {
-                // posiciones
-                positions.Add(t.A.X); positions.Add(t.A.Y); positions.Add(t.A.Z);
-                positions.Add(t.B.X); positions.Add(t.B.Y); positions.Add(t.B.Z);
-                positions.Add(t.C.X); positions.Add(t.C.Y); positions.Add(t.C.Z);
-
-                // triángulos
-                triIndices.Add(baseIndex + 0);
-                triIndices.Add(baseIndex + 1);
-                triIndices.Add(baseIndex + 2);
-
-                // aristas
-                AddEdge(edgeSet, baseIndex + 0, baseIndex + 1);
-                AddEdge(edgeSet, baseIndex + 1, baseIndex + 2);
-                AddEdge(edgeSet, baseIndex + 2, baseIndex + 0);
-
-                baseIndex += 3;
-            }
-
-            // Convertir el conjunto de aristas únicas a una lista de índices
-            var edgeIdx = new List<uint>(edgeSet.Count * 2);
-            foreach (var (start, end) in edgeSet)
-            {
-                edgeIdx.Add(start);
-                edgeIdx.Add(end);
-            }
-
-            _mesh = new Mesh(positions.ToArray(), triIndices.ToArray(), edgeIdx.ToArray());
-        }
-
-        private void AddEdge(HashSet<(uint, uint)> edgeSet, uint start, uint end)
-        {
-            var edge = (start < end) ? (start, end) : (end, start);
-            if (!edgeSet.Contains(edge))
-            {
-                edgeSet.Add(edge);
-            }
-        }
-
-        public void Draw(Shader shader, Matrix4 model)
-        {
             if (_mesh == null) return;
 
-            shader.SetMatrix4("model", model);
-            shader.SetVector4("uColor", Color);
-            _mesh.DrawTriangles();
+            Matrix4 model = WorldMatrix();
+            Matrix4 mvp = model * viewProjection;
 
-            if (DrawEdges)
-            {
-                shader.SetVector4("uColor", EdgeColor);
-                _mesh.DrawLines(EdgeLineWidth);
-            }
+            shader.Use();
+            shader.SetMatrix4("mvp", mvp);
+            shader.SetVector4("uColor", _color);
+
+            GL.Enable(EnableCap.PolygonOffsetFill);
+            GL.PolygonOffset(1.0f, 1.0f);
+            _mesh.DrawTriangles();
+            GL.Disable(EnableCap.PolygonOffsetFill);
+            _mesh.DrawLines(EdgeWidth);
         }
 
-        public Vector3 CalcularCentroMasa()
+        // Reconstruye el mesh si fue liberado o no existe
+        private void EnsureMesh()
         {
-            if (_tris.Count == 0) return Vector3.Zero;
-            Vector3 sum = Vector3.Zero;
-            foreach (var t in _tris) sum += t.Centro();
-            return sum / _tris.Count;
+            if (_mesh == null && _vertices is { Length: > 0 } && _triangles is { Length: > 0 })
+            {
+                _mesh = new Mesh(_vertices, _triangles, _edges);
+            }
         }
 
         public void Dispose()
         {
+            if (_disposed) return;
             _mesh?.Dispose();
-            _mesh = null;
+            _disposed = true;
         }
     }
 }

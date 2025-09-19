@@ -11,14 +11,18 @@ namespace Proyecto_3D.Core3D
             GL.Enable(EnableCap.DepthTest); 
             GL.DepthFunc(DepthFunction.Less);
 
+            // Habilitar blending para transparencias
+            GL.Enable(EnableCap.Blend);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
             // Back-face culling habilitado para mejor rendimiento
             GL.Enable(EnableCap.CullFace);
             GL.CullFace(TriangleFace.Back);
-            GL.FrontFace(FrontFaceDirection.Cw);
-
-            // Polygon offset SOLO para el relleno (evita z-fighting con el contorno)
+            GL.FrontFace(FrontFaceDirection.Ccw);
+            
+            // Habilitar offset de polígonos
             GL.Enable(EnableCap.PolygonOffsetFill);
-            GL.PolygonOffset(1.0f, 1.0f); // empuja el fill un poco "hacia atrás"
+            GL.PolygonOffset(1.0f, 1.0f);
 
             // (Opcional) líneas más suaves y multisample
             GL.Enable(EnableCap.LineSmooth);

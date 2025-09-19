@@ -75,9 +75,15 @@ namespace Proyecto_3D.Core3D
             int loc = GL.GetUniformLocation(Handle, name);
             GL.Uniform4(loc, v);
         }
+        public int GetAttribLocation(string attribName)
+        {
+            return GL.GetAttribLocation(Handle, attribName);
+        }
         public void Dispose()
         {
-            Dispose(true);
+            if (disposedValue) return;
+            GL.DeleteProgram(Handle);
+            disposedValue = true;
             GC.SuppressFinalize(this);
         }
 
@@ -87,18 +93,5 @@ namespace Proyecto_3D.Core3D
                 Console.WriteLine("¡Fuga de recursos de GPU! ¿Olvidaste llamar a Dispose()?");
         }
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                GL.DeleteProgram(Handle);
-                disposedValue = true;
-            }
-        }
-
-        public int GetAttribLocation(string attribName)
-        {
-            return GL.GetAttribLocation(Handle, attribName);
-        }
     }
 }

@@ -60,8 +60,6 @@ namespace Proyecto_3D.Core3D
         }
         public void DrawTriangles()
         {
-            // Renderizar el cubo
-            // enlazar el VAO de sólidos y dibujar los elementos
             if (_triCount == 0) return;
             GL.BindVertexArray(vaoSolid);
             GL.DrawElements(PrimitiveType.Triangles, _triCount, DrawElementsType.UnsignedInt, 0);
@@ -69,14 +67,9 @@ namespace Proyecto_3D.Core3D
         }
         public void DrawLines(float lineWidth = 2f)
         {
-            // 2) Contornos
-            // enlazar el VAO de aristas y dibujar los elementos
             if (_lineCount == 0 || vaoEdges == 0) return;
-            GL.BindVertexArray(vaoEdges);
-
-            // Asegurar que el ancho de línea sea visible
             GL.LineWidth(lineWidth);
-
+            GL.BindVertexArray(vaoEdges);
             GL.DrawElements(PrimitiveType.Lines, _lineCount, DrawElementsType.UnsignedInt, 0);
         }
         public void Dispose()
