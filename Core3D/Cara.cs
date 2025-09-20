@@ -24,6 +24,8 @@ namespace Proyecto_3D.Core3D
 
         public float EdgeWidth { get; set; } = 1.75f;
 
+    public Vector3 CentroDeMasa { get; private set; }
+
         public Cara(string name, float[] vertices, uint[] triangleIndices, uint[]? lineIndices = null, Objeto? padre = null)
         {
             Name = name;
@@ -35,7 +37,21 @@ namespace Proyecto_3D.Core3D
             _edges = lineIndices ?? Array.Empty<uint>();
 
             _mesh = new Mesh(_vertices, _triangles, _triangles);
+
+        CalcularCentroDeMasa();
         }
+
+    public void CalcularCentroDeMasa()
+    {
+        if (_vertices == null || _vertices.Length < 3) { CentroDeMasa = Vector3.Zero; return; }
+        int count = _vertices.Length / 3;
+        Vector3 suma = Vector3.Zero;
+        for (int i = 0; i < count; i++)
+        {
+        suma += new Vector3(_vertices[i * 3], _vertices[i * 3 + 1], _vertices[i * 3 + 2]);
+        }
+        CentroDeMasa = suma / count;
+    }
 
         public float[] GetVertices()  => _vertices;
         public uint[]  GetTriangles() => _triangles;

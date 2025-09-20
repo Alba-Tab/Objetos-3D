@@ -11,6 +11,7 @@ namespace Proyecto_3D.Core3D
 
         private int _nextId = 1;
         
+        public Vector3 CentroDeMasa { get; private set; }
         public Objeto(string name, Escenario? padre = null)
         {
             Name = name;
@@ -23,6 +24,21 @@ namespace Proyecto_3D.Core3D
         {
             cara.Padre = this;
             Hijos.Add(_nextId++, cara);
+            CalcularCentroDeMasa();
+        }
+
+        public void CalcularCentroDeMasa()
+        {
+            if (Hijos.Count == 0) { CentroDeMasa = Vector3.Zero; return; }
+            Vector3 suma = Vector3.Zero;
+            int count = 0;
+            foreach (var cara in Hijos.Values)
+            {
+                cara.CalcularCentroDeMasa();
+                suma += cara.CentroDeMasa;
+                count++;
+            }
+            CentroDeMasa = count > 0 ? suma / count : Vector3.Zero;
         }
 
         public Matrix4 WorldMatrix()
