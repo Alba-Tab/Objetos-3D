@@ -18,7 +18,7 @@ namespace Proyecto_3D.Core3D
             // Back-face culling habilitado para mejor rendimiento
             GL.Enable(EnableCap.CullFace);
             GL.CullFace(TriangleFace.Back);
-            GL.FrontFace(FrontFaceDirection.Cw);
+            GL.FrontFace(FrontFaceDirection.Ccw);
             
         }
 

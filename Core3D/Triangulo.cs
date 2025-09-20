@@ -14,7 +14,6 @@ namespace Proyecto_3D.Core3D
         public Triangulo(Vector3 a, Vector3 b, Vector3 c)
         {
             A = a; B = b; C = c;
-            // Crear mesh para el triángulo
             float[] vertices = new float[]
             {
                 A.X, A.Y, A.Z,

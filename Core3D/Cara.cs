@@ -75,7 +75,6 @@ namespace Proyecto_3D.Core3D
             //_mesh.DrawLines(EdgeWidth);
         }
 
-        // Reconstruye el mesh si fue liberado o no existe
         private void EnsureMesh()
         {
             if (_mesh == null && _vertices is { Length: > 0 } && _triangles is { Length: > 0 })

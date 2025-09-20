@@ -24,11 +24,11 @@ namespace Proyecto_3D.Core3D
             cara.Padre = this;
             Hijos.Add(_nextId++, cara);
         }
-        
+
         public Matrix4 WorldMatrix()
         {
             var local = Transform.LocalMatrix();
-            return Padre != null ? Padre.WorldMatrix() * local : local;
+            return Padre != null ? Padre.WorldMatrix() * local : local;   
         }
 
         public void Draw(Shader shader, Matrix4 ViewProjection)
