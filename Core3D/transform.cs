@@ -44,7 +44,7 @@ namespace Proyecto_3D.Core3D
                 MathHelper.DegreesToRadians(Rotacion.Y),
                 MathHelper.DegreesToRadians(Rotacion.Z)));
             var t = Matrix4.CreateTranslation(Traslacion);
-            return t * r * s; 
+            return r * s * t;
         }
 
     }
