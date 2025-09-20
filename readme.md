@@ -2,7 +2,8 @@
 
 ```C#
 
-        // =======================
+
+// =======================
         // Construcción de escena
         // =======================
         private Escenario BuildEjes()
@@ -85,13 +86,70 @@
 
         // Helpers de construcción
 
+
+        // Crea un cubo con 6 caras independientes
         private Objeto CrearObjetoCubo(string nombre, Escenario parent, Vector3 posicion, Vector3 dimensiones, Vector4 color)
         {
-            var cara = CrearCubo(dimensiones, color);
             var obj = new Objeto(nombre, parent);
             obj.Transform.Traslacion = posicion;
-            obj.Add(cara);
+            var caras = CrearCarasCubo(dimensiones, color);
+            foreach (var cara in caras)
+                obj.Add(cara);
             return obj;
+        }
+
+        // Crea las 6 caras de un cubo, cada una como un objeto Cara independiente
+        private List<Cara> CrearCarasCubo(Vector3 dimensiones, Vector4 color)
+        {
+            float hx = dimensiones.X * 0.5f;
+            float hy = dimensiones.Y * 0.5f;
+            float hz = dimensiones.Z * 0.5f;
+
+            // Vértices de un cubo centrado en el origen
+            var v = new Vector3[] {
+                new(-hx, -hy,  hz), // 0
+                new( hx, -hy,  hz), // 1
+                new( hx,  hy,  hz), // 2
+                new(-hx,  hy,  hz), // 3
+                new(-hx, -hy, -hz), // 4
+                new( hx, -hy, -hz), // 5
+                new( hx,  hy, -hz), // 6
+                new(-hx,  hy, -hz)  // 7
+            };
+
+            // Definición de las 6 caras (cada una con 4 vértices)
+            var caras = new List<Cara>();
+            // Frente
+            caras.Add(CrearCaraPlano("Frente", new[] { v[0], v[1], v[2], v[3] }, color));
+            // Atrás
+            caras.Add(CrearCaraPlano("Atras", new[] { v[5], v[4], v[7], v[6] }, color));
+            // Izquierda
+            caras.Add(CrearCaraPlano("Izquierda", new[] { v[4], v[0], v[3], v[7] }, color));
+            // Derecha
+            caras.Add(CrearCaraPlano("Derecha", new[] { v[1], v[5], v[6], v[2] }, color));
+            // Arriba
+            caras.Add(CrearCaraPlano("Arriba", new[] { v[3], v[2], v[6], v[7] }, color));
+            // Abajo
+            caras.Add(CrearCaraPlano("Abajo", new[] { v[4], v[5], v[1], v[0] }, color));
+            return caras;
+        }
+
+        // Crea una cara plana (cuadrada) a partir de 4 vértices
+        private Cara CrearCaraPlano(string nombre, Vector3[] vertices, Vector4 color)
+        {
+            // 4 vértices, 2 triángulos
+            float[] verts = new float[] {
+                vertices[0].X, vertices[0].Y, vertices[0].Z,
+                vertices[1].X, vertices[1].Y, vertices[1].Z,
+                vertices[2].X, vertices[2].Y, vertices[2].Z,
+                vertices[3].X, vertices[3].Y, vertices[3].Z
+            };
+            uint[] tris = new uint[] { 0, 1, 2, 0, 2, 3 };
+            uint[] edges = new uint[] { 0,1, 1,2, 2,3, 3,0 };
+            var cara = new Cara(nombre, verts, tris, edges);
+            cara.SetColor(color);
+            cara.EdgeWidth = 2.0f;
+            return cara;
         }
 
         private Objeto CrearMonitor(
@@ -103,21 +161,37 @@
         {
             var monitor = new Objeto("Monitor", parent);
 
-            var caraBase = CrearCubo(baseDim, baseColor);
-            caraBase.Transform.Traslacion = basePos;
-            monitor.Add(caraBase);
+            // Base
+            var carasBase = CrearCarasCubo(baseDim, baseColor);
+            foreach (var cara in carasBase)
+            {
+                cara.Transform.Traslacion = basePos;
+                monitor.Add(cara);
+            }
 
-            var caraSoporte = CrearCubo(soporteDim, soporteColor);
-            caraSoporte.Transform.Traslacion = soportePos;
-            monitor.Add(caraSoporte);
+            // Soporte
+            var carasSoporte = CrearCarasCubo(soporteDim, soporteColor);
+            foreach (var cara in carasSoporte)
+            {
+                cara.Transform.Traslacion = soportePos;
+                monitor.Add(cara);
+            }
 
-            var caraPantalla = CrearCubo(pantallaDim, pantallaColor);
-            caraPantalla.Transform.Traslacion = pantallaPos;
-            monitor.Add(caraPantalla);
+            // Pantalla
+            var carasPantalla = CrearCarasCubo(pantallaDim, pantallaColor);
+            foreach (var cara in carasPantalla)
+            {
+                cara.Transform.Traslacion = pantallaPos;
+                monitor.Add(cara);
+            }
 
-            var caraContenido = CrearCubo(contenidoDim, contenidoColor);
-            caraContenido.Transform.Traslacion = contenidoPos;
-            monitor.Add(caraContenido);
+            // Contenido
+            var carasContenido = CrearCarasCubo(contenidoDim, contenidoColor);
+            foreach (var cara in carasContenido)
+            {
+                cara.Transform.Traslacion = contenidoPos;
+                monitor.Add(cara);
+            }
 
             return monitor;
         }
