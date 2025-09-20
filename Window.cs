@@ -6,6 +6,7 @@ using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using Proyecto_3D.Core3D;
 using Proyecto_3D.Serializacion;
+using System.Linq;
 
 namespace Proyecto_3D
 {
@@ -14,6 +15,11 @@ namespace Proyecto_3D
         private Shader _shader = null!;
         private Escenario _escenario = null!;
         private Escenario _ejes = null!;
+
+        private enum ModoTransformacion { Escenario, Objeto }
+        private ModoTransformacion _modoActual = ModoTransformacion.Escenario;
+        private Objeto? _objetoSeleccionado = null;
+        private int _indiceObjetoSeleccionado = 0;
 
         // Cámara
         private Matrix4 _view;
@@ -47,9 +53,14 @@ namespace Proyecto_3D
             _projection = Matrix4.CreatePerspectiveFieldOfView(
                 MathHelper.DegreesToRadians(60f), aspect, 0.1f, 100f);
 
-
             _escenario = EscenarioCompletoSerializer.Load("Serializacion/escenario.json");
             _ejes = EscenarioCompletoSerializer.Load("Serializacion/ejes.json");
+
+            if (_escenario.Hijos.Count > 0)
+            {
+                _indiceObjetoSeleccionado = 0;
+                _objetoSeleccionado = _escenario.Hijos.Values.ElementAt(_indiceObjetoSeleccionado);
+            }
         }
 
         protected override void OnRenderFrame(FrameEventArgs e)
@@ -61,12 +72,15 @@ namespace Proyecto_3D
             _shader.Use();
 
             var viewProjection = _view * _projection;
-            
-            _escenario.Draw(_shader, viewProjection);
-            _ejes.Draw(_shader, viewProjection);
 
+            _escenario.Draw(_shader, viewProjection);
+
+            DibujarReflejoEscenario(Transform.MatrizReflexionXY(), viewProjection);
+
+            _ejes.Draw(_shader, viewProjection);
             SwapBuffers();
         }
+        
 
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
@@ -75,48 +89,60 @@ namespace Proyecto_3D
             if (KeyboardState.IsKeyDown(Keys.Escape))
                 Close();
 
-            if (KeyboardState.IsKeyPressed(Keys.J))
+            if (KeyboardState.IsKeyPressed(Keys.J)) SerializarEscenario("escenarioTransformado.json");
+
+            if (KeyboardState.IsKeyPressed(Keys.L)) CargarEscenario("Serializacion/escenario.json");
+            if (KeyboardState.IsKeyPressed(Keys.K)) CargarEscenario("Serializacion/escenarioTransformado.json");
+
+
+            if (KeyboardState.IsKeyPressed(Keys.O))
             {
-                    EscenarioCompletoSerializer.Save("Serializacion/escenario.json", _escenario);
-                    Console.WriteLine("Ejes guardados en Serializacion/escenario.json");
+                _modoActual = _modoActual == ModoTransformacion.Escenario ? ModoTransformacion.Objeto : ModoTransformacion.Escenario;
+                Console.WriteLine($"Modo de transformación: {_modoActual}");
             }
 
-            if (KeyboardState.IsKeyPressed(Keys.L))
+            if (KeyboardState.IsKeyPressed(Keys.N))
             {
-                    _escenario.Dispose();
-                    _escenario = EscenarioCompletoSerializer.Load("Serializacion/escenario.json");
-                    Console.WriteLine("Escena cargada desde Serializacion/escenario.json");
+                if (_escenario.Hijos.Count > 0)
+                {
+                    _indiceObjetoSeleccionado = (_indiceObjetoSeleccionado + 1) % _escenario.Hijos.Count;
+                    _objetoSeleccionado = _escenario.Hijos.Values.ElementAt(_indiceObjetoSeleccionado);
+                    Console.WriteLine($"Objeto seleccionado: {_objetoSeleccionado.Name} (Caras: {_objetoSeleccionado.Hijos.Count})");
+                }
             }
 
-            // Controles de transformación del escenario
-            float dt = (float)e.Time;
+
+            float time = (float)e.Time;
 
             // Traslación (WASD + R/F)
-            float t = 1.0f * dt;
-            if (KeyboardState.IsKeyDown(Keys.W)) _escenario.Transform.Traslacion += new Vector3(0, 0, -t);
-            if (KeyboardState.IsKeyDown(Keys.S)) _escenario.Transform.Traslacion += new Vector3(0, 0, t);
-            if (KeyboardState.IsKeyDown(Keys.A)) _escenario.Transform.Traslacion += new Vector3(-t, 0, 0);
-            if (KeyboardState.IsKeyDown(Keys.D)) _escenario.Transform.Traslacion += new Vector3(t, 0, 0);
-            if (KeyboardState.IsKeyDown(Keys.R)) _escenario.Transform.Traslacion += new Vector3(0, t, 0);
-            if (KeyboardState.IsKeyDown(Keys.F)) _escenario.Transform.Traslacion += new Vector3(0, -t, 0);
+            float t = 1.0f * time;
+            var transformDestino = _modoActual == ModoTransformacion.Escenario ?
+                    _escenario.Transform : (_objetoSeleccionado?.Transform ?? _escenario.Transform);
+
+            if (KeyboardState.IsKeyDown(Keys.W)) transformDestino.Traslacion += new Vector3(0, 0, -t);
+            if (KeyboardState.IsKeyDown(Keys.S)) transformDestino.Traslacion += new Vector3(0, 0, t);
+            if (KeyboardState.IsKeyDown(Keys.A)) transformDestino.Traslacion += new Vector3(-t, 0, 0);
+            if (KeyboardState.IsKeyDown(Keys.D)) transformDestino.Traslacion += new Vector3(t, 0, 0);
+            if (KeyboardState.IsKeyDown(Keys.R)) transformDestino.Traslacion += new Vector3(0, t, 0);
+            if (KeyboardState.IsKeyDown(Keys.F)) transformDestino.Traslacion += new Vector3(0, -t, 0);
 
             // Rotación (Q/E/Z/C)
-            float r = 45f * dt;
-            if (KeyboardState.IsKeyDown(Keys.Q)) _escenario.Transform.Rotacion.Y -= r;
-            if (KeyboardState.IsKeyDown(Keys.E)) _escenario.Transform.Rotacion.Y += r;
-            if (KeyboardState.IsKeyDown(Keys.Z)) _escenario.Transform.Rotacion.X -= r;
-            if (KeyboardState.IsKeyDown(Keys.C)) _escenario.Transform.Rotacion.X += r;
+            float r = 45f * time;
+            if (KeyboardState.IsKeyDown(Keys.Q)) transformDestino.Rotacion.Y -= r;
+            if (KeyboardState.IsKeyDown(Keys.E)) transformDestino.Rotacion.Y += r;
+            if (KeyboardState.IsKeyDown(Keys.Z)) transformDestino.Rotacion.X -= r;
+            if (KeyboardState.IsKeyDown(Keys.C)) transformDestino.Rotacion.X += r;
 
             // Escala (T/G)
-            float escDelta = (KeyboardState.IsKeyDown(Keys.T) ? 1f : KeyboardState.IsKeyDown(Keys.G) ? -1f : 0f) * dt;
+            float escDelta = (KeyboardState.IsKeyDown(Keys.T) ? 1f : KeyboardState.IsKeyDown(Keys.G) ? -1f : 0f) * time;
             if (MathF.Abs(escDelta) > float.Epsilon)
             {
                 float factor = 1.0f + escDelta;
-                _escenario.Transform.Escala *= factor;
-                _escenario.Transform.Escala = new Vector3(
-                    MathF.Max(0.1f, _escenario.Transform.Escala.X),
-                    MathF.Max(0.1f, _escenario.Transform.Escala.Y),
-                    MathF.Max(0.1f, _escenario.Transform.Escala.Z)
+                transformDestino.Escala *= factor;
+                transformDestino.Escala = new Vector3(
+                    MathF.Max(0.1f, transformDestino.Escala.X),
+                    MathF.Max(0.1f, transformDestino.Escala.Y),
+                    MathF.Max(0.1f, transformDestino.Escala.Z)
                 );
             }
         }
@@ -140,6 +166,46 @@ namespace Proyecto_3D
             _escenario?.Dispose();
             _ejes?.Dispose();
             _shader?.Dispose();
+        }
+
+        private void SerializarEscenario(string name)
+        {
+            EscenarioCompletoSerializer.Save("Serializacion/" + name, _escenario);
+            Console.WriteLine("Escenario guardados en Serializacion/" + name);
+        }
+
+        private void CargarEscenario(String ruta)
+        {
+            _escenario.Dispose();
+            _escenario = EscenarioCompletoSerializer.Load(ruta);
+            Console.WriteLine("Escena cargada desde " + ruta);
+
+            if (_escenario.Hijos.Count > 0)
+            {
+                _indiceObjetoSeleccionado %= _escenario.Hijos.Count;
+                _objetoSeleccionado = _escenario.Hijos.Values.ElementAt(_indiceObjetoSeleccionado);
+            }
+            else
+            {
+                _objetoSeleccionado = null;
+                _indiceObjetoSeleccionado = 0;
+            }
+        }
+        
+        private void DibujarReflejoEscenario(Matrix4 matrizReflexion, Matrix4 viewProjection)
+        {
+            var originales = new List<(Cara cara, Vector4 color)>();
+            foreach (var obj in _escenario.Hijos.Values)
+                foreach (var cara in obj.Hijos.Values)
+                {
+                    originales.Add((cara, cara.GetColor()));
+                    var c = cara.GetColor();
+                    cara.SetColor(new Vector4(c.X, c.Y, c.Z, 0.3f));
+                }
+            _escenario.Draw(_shader, matrizReflexion * viewProjection);
+
+            foreach (var (cara, color) in originales)
+                cara.SetColor(color);
         }
 
     }

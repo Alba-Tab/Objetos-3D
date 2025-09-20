@@ -68,6 +68,7 @@ namespace Proyecto_3D.Core3D
         public void DrawLines(float lineWidth = 2f)
         {
             if (_lineCount == 0 || vaoEdges == 0) return;
+
             GL.LineWidth(lineWidth);
             GL.BindVertexArray(vaoEdges);
             GL.DrawElements(PrimitiveType.Lines, _lineCount, DrawElementsType.UnsignedInt, 0);

@@ -18,15 +18,8 @@ namespace Proyecto_3D.Core3D
             // Back-face culling habilitado para mejor rendimiento
             GL.Enable(EnableCap.CullFace);
             GL.CullFace(TriangleFace.Back);
-            GL.FrontFace(FrontFaceDirection.Ccw);
+            GL.FrontFace(FrontFaceDirection.Cw);
             
-            // Habilitar offset de polígonos
-            GL.Enable(EnableCap.PolygonOffsetFill);
-            GL.PolygonOffset(1.0f, 1.0f);
-
-            // (Opcional) líneas más suaves y multisample
-            GL.Enable(EnableCap.LineSmooth);
-            GL.Enable(EnableCap.Multisample);
         }
 
 

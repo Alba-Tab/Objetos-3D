@@ -10,21 +10,15 @@ using Proyecto_3D.Core3D;
 
 namespace Proyecto_3D.Serializacion
 {
-    /// <summary>
-    /// Serializa/deserializa un Escenario completo:
-    /// - Escenario: Name + Transform
-    /// - Objetos:   Name + Transform
-    /// - Caras:     Name + Transform + Color + EdgeWidth + Geometría (vértices/triángulos/aristas)
-    /// Requiere que Cara permita obtener la geometría vía getters o campos accesibles.
-    /// </summary>
+    
     public static class EscenarioCompletoSerializer
     {
         // ---------------- DTOs ----------------
         private sealed class TransformDTO
         {
             public float[] Traslacion { get; set; } = new float[3];
-            public float[] Rotacion   { get; set; } = new float[3];
-            public float[] Escala     { get; set; } = new float[3] { 1, 1, 1 };
+            public float[] Rotacion { get; set; } = new float[3];
+            public float[] Escala { get; set; } = new float[3] { 1, 1, 1 };
             public bool Enabled { get; set; } = true;
         }
 
@@ -32,7 +26,7 @@ namespace Proyecto_3D.Serializacion
         {
             public string Name { get; set; } = "Cara";
             public TransformDTO Transform { get; set; } = new();
-            public float[] Color { get; set; } = new float[4]{1,1,1,1};
+            public float[] Color { get; set; } = new float[4] { 1, 1, 1, 1 };
             public float EdgeWidth { get; set; } = 1.5f;
 
             public float[] Vertices { get; set; } = Array.Empty<float>(); // xyz xyz ...
@@ -104,7 +98,7 @@ namespace Proyecto_3D.Serializacion
             var (verts, tris, edges) = ExtractGeometry(c); // lanza si no puede extraer
 
             // Color y EdgeWidth, con defaults si no existen
-            Vector4 color = TryGetColor(c) ?? new Vector4(1,1,1,1);
+            Vector4 color = TryGetColor(c) ?? new Vector4(1, 1, 1, 1);
             float edgeWidth = TryGetEdgeWidth(c) ?? 1.5f;
 
             return new CaraDTO
@@ -124,9 +118,9 @@ namespace Proyecto_3D.Serializacion
             return new TransformDTO
             {
                 Traslacion = new[] { t.Traslacion.X, t.Traslacion.Y, t.Traslacion.Z },
-                Rotacion   = new[] { t.Rotacion.X,   t.Rotacion.Y,   t.Rotacion.Z   },
-                Escala     = new[] { t.Escala.X,     t.Escala.Y,     t.Escala.Z     },
-                Enabled    = t.Enabled
+                Rotacion = new[] { t.Rotacion.X, t.Rotacion.Y, t.Rotacion.Z },
+                Escala = new[] { t.Escala.X, t.Escala.Y, t.Escala.Z },
+                Enabled = t.Enabled
             };
         }
 
@@ -160,9 +154,9 @@ namespace Proyecto_3D.Serializacion
 
             // TRS
             cara.Transform.Traslacion = ArrV3(cDto.Transform.Traslacion, Vector3.Zero);
-            cara.Transform.Rotacion   = ArrV3(cDto.Transform.Rotacion,   Vector3.Zero);
-            cara.Transform.Escala     = ArrV3(cDto.Transform.Escala,     Vector3.One);
-            cara.Transform.Enabled    = cDto.Transform.Enabled;
+            cara.Transform.Rotacion = ArrV3(cDto.Transform.Rotacion, Vector3.Zero);
+            cara.Transform.Escala = ArrV3(cDto.Transform.Escala, Vector3.One);
+            cara.Transform.Enabled = cDto.Transform.Enabled;
 
             // Apariencia
             if (cDto.Color is { Length: >= 3 })
@@ -181,9 +175,9 @@ namespace Proyecto_3D.Serializacion
         private static void Apply(Transform t, TransformDTO d)
         {
             t.Traslacion = ArrV3(d.Traslacion, Vector3.Zero);
-            t.Rotacion   = ArrV3(d.Rotacion,   Vector3.Zero);
-            t.Escala     = ArrV3(d.Escala,     Vector3.One);
-            t.Enabled    = d.Enabled;
+            t.Rotacion = ArrV3(d.Rotacion, Vector3.Zero);
+            t.Escala = ArrV3(d.Escala, Vector3.One);
+            t.Enabled = d.Enabled;
         }
 
         private static Vector3 ArrV3(float[]? a, Vector3 fallback)
@@ -205,15 +199,15 @@ namespace Proyecto_3D.Serializacion
             {
                 return (
                     (float[])mV.Invoke(c, null)!,
-                    (uint[]) mT.Invoke(c, null)!,
-                    (uint[]) mE.Invoke(c, null)!
+                    (uint[])mT.Invoke(c, null)!,
+                    (uint[])mE.Invoke(c, null)!
                 );
             }
 
             // 2) Campos comunes via reflection (por si los guardas en la clase)
             var verts = TryGetField<float[]>(c, new[] { "_vertices", "vertices", "Verts", "Vertices" });
-            var tris  = TryGetField<uint[]>( c, new[] { "_triangles", "triangles", "Tris", "Triangles" });
-            var edges = TryGetField<uint[]>( c, new[] { "_edges", "edges", "Lines", "LineIndices" });
+            var tris = TryGetField<uint[]>(c, new[] { "_triangles", "triangles", "Tris", "Triangles" });
+            var edges = TryGetField<uint[]>(c, new[] { "_edges", "edges", "Lines", "LineIndices" });
             if (verts != null && tris != null && edges != null)
             {
                 return (verts, tris, edges);

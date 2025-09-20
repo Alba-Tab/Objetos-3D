@@ -13,7 +13,6 @@ namespace Proyecto_3D.Core3D
         public Objeto? Padre { get; set; }
         public Dictionary<int, Triangulo> Hijos { get; } = new();
 
-        // Por qué: el serializer necesita acceder a la geometría
         private float[] _vertices;
         private uint[] _triangles;
         private uint[] _edges;
@@ -35,10 +34,9 @@ namespace Proyecto_3D.Core3D
             _triangles = triangleIndices ?? Array.Empty<uint>();
             _edges = lineIndices ?? Array.Empty<uint>();
 
-            _mesh = new Mesh(_vertices, _triangles, _edges);
+            _mesh = new Mesh(_vertices, _triangles, _triangles);
         }
 
-        // Getters requeridos por el serializer “completo”
         public float[] GetVertices()  => _vertices;
         public uint[]  GetTriangles() => _triangles;
         public uint[]  GetEdges()     => _edges;
@@ -60,7 +58,7 @@ namespace Proyecto_3D.Core3D
 
         public void Draw(Shader shader, Matrix4 viewProjection)
         {
-            EnsureMesh(); // Por qué: al deserializar puedes rearmar la cara sin GL vivo
+            EnsureMesh();
 
             if (_mesh == null) return;
 
@@ -71,11 +69,10 @@ namespace Proyecto_3D.Core3D
             shader.SetMatrix4("mvp", mvp);
             shader.SetVector4("uColor", _color);
 
-            GL.Enable(EnableCap.PolygonOffsetFill);
             GL.PolygonOffset(1.0f, 1.0f);
             _mesh.DrawTriangles();
-            GL.Disable(EnableCap.PolygonOffsetFill);
-            _mesh.DrawLines(EdgeWidth);
+            
+            //_mesh.DrawLines(EdgeWidth);
         }
 
         // Reconstruye el mesh si fue liberado o no existe

@@ -4,6 +4,25 @@ namespace Proyecto_3D.Core3D
 {
     public class Transform
     {
+        public static Matrix4 MatrizReflexionXY()
+        {
+            return new Matrix4(
+                1, 0,  0, 0,
+                0, 1,  0, 0,
+                0, 0, -1, 0,
+                0, 0,  0, 1
+            );
+        }
+        public static Matrix4 MatrizReflexionXZ()
+        {
+            //  invierte Y
+            return new Matrix4(
+                1,  0, 0, 0,
+                0, -1, 0, 0,
+                0,  0, 1, 0,
+                0,  0, 0, 1
+            );
+        }
         public Vector3 Traslacion;
         public Vector3 Rotacion;
         public Vector3 Escala;
@@ -25,7 +44,7 @@ namespace Proyecto_3D.Core3D
                 MathHelper.DegreesToRadians(Rotacion.Y),
                 MathHelper.DegreesToRadians(Rotacion.Z)));
             var t = Matrix4.CreateTranslation(Traslacion);
-            return t * r * s; // por qu�: TRS en orden simple y legible
+            return t * r * s; 
         }
 
     }
