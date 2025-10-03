@@ -93,11 +93,12 @@ namespace Proyecto_3D.Core3D
 
         private void EnsureMesh()
         {
-            if (_mesh == null && _vertices is { Length: > 0 } && _triangles is { Length: > 0 })
+            if (_mesh == null && _vertices.Length > 0)
             {
                 _mesh = new Mesh(_vertices, _triangles, _edges);
             }
-        }
+        }    
+
 
         public void Dispose()
         {

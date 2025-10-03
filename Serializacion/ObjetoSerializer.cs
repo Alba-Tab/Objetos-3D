@@ -1,8 +1,3 @@
-// File: Proyecto_3D/Serializacion/EscenarioCompletoSerializer.cs
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using OpenTK.Mathematics;
@@ -48,7 +43,7 @@ namespace Proyecto_3D.Serializacion
             public List<ObjetoDTO> Objetos { get; set; } = new();
         }
 
-        // --------------- API pública ---------------
+        // --------------- API ---------------
         public static void Save(string path, Escenario escena)
         {
             if (escena is null) throw new ArgumentNullException(nameof(escena));
