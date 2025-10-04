@@ -21,6 +21,12 @@ namespace Proyecto_3D
         private Objeto? _objetoSeleccionado = null;
         private int _indiceObjetoSeleccionado = 0;
 
+        // Sistema de animación
+        private AnimationRecorder _recorder = null!;
+        private AnimationPlayer _player = null!;
+        private AnimationClip? _ultimoClip = null;
+        private bool _modoAnimacion = false;
+
         // Cámara
         private Matrix4 _view;
         private Matrix4 _projection;
@@ -56,22 +62,22 @@ namespace Proyecto_3D
             _escenario = EscenarioCompletoSerializer.Load("Serializacion/escenario.json");
             _ejes = EscenarioCompletoSerializer.Load("Serializacion/ejes.json");
 
-            //_escenario = BuildPC();
-            //_ejes = BuildEjes();
             if (_escenario.Hijos.Count > 0)
             {
                 _indiceObjetoSeleccionado = 0;
                 _objetoSeleccionado = _escenario.Hijos.Values.ElementAt(_indiceObjetoSeleccionado);
             }
-            
 
-            // Cambiar a color rosa la primera cara de la CPU
-            //var cpu = _escenario.Hijos.Values.FirstOrDefault(obj => obj.Name == "CPU");
-            //if (cpu != null && cpu.Hijos.Count > 0)
-            //{
-            //    // Cambia la primera cara a rosa
-            //    cpu.Hijos.Values.First().SetColor(new Vector4(1f, 0.4f, 0.7f, 1f));
-            //}
+            // Inicializar sistema de animación
+            _recorder = new AnimationRecorder(keyframeInterval: 0.1f);
+            _player = new AnimationPlayer();
+
+            Console.WriteLine("\n=== SISTEMA DE ANIMACIÓN ===");
+            Console.WriteLine("Space: Iniciar grabación");
+            Console.WriteLine("Space: Detener grabación y guardar");
+            Console.WriteLine("P: Reproducir última animación");
+            Console.WriteLine("I: Detener animación");
+            Console.WriteLine("============================\n");
         }
 
         protected override void OnRenderFrame(FrameEventArgs e)
@@ -96,23 +102,36 @@ namespace Proyecto_3D
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
             base.OnUpdateFrame(e);
+            
+            float deltaTime = (float)e.Time;
 
-            if (KeyboardState.IsKeyDown(Keys.Escape))
-                Close();
+            var transformDestino = _modoActual == ModoTransformacion.Escenario ?
+                    _escenario.Transform : (_objetoSeleccionado?.Transform ?? _escenario.Transform);
 
-            if (KeyboardState.IsKeyPressed(Keys.J)) SerializarEscenario("escenarioTransformado.json");
+            if (_modoAnimacion && _player.IsPlaying)
+                _player.ApplyToTransform(transformDestino, deltaTime);
+            else if (!_modoAnimacion)
+                TransformacionManual(transformDestino, deltaTime);
+            
+        }       
 
-            if (KeyboardState.IsKeyPressed(Keys.L)) CargarEscenario("Serializacion/escenario.json");
-            if (KeyboardState.IsKeyPressed(Keys.K)) CargarEscenario("Serializacion/escenarioTransformado.json");
+        protected override void OnKeyDown(KeyboardKeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            if (e.Key == Keys.Escape) Close();
+
+            if (e.Key == Keys.J) SerializarEscenario("escenarioTransformado.json");
+            if (e.Key == Keys.L) CargarEscenario("Serializacion/escenario.json");
+            if (e.Key == Keys.K) CargarEscenario("Serializacion/escenarioTransformado.json");
 
 
-            if (KeyboardState.IsKeyPressed(Keys.O))
+            if (e.Key == Keys.O)
             {
                 _modoActual = _modoActual == ModoTransformacion.Escenario ? ModoTransformacion.Objeto : ModoTransformacion.Escenario;
                 Console.WriteLine($"Modo de transformación: {_modoActual}");
             }
 
-            if (KeyboardState.IsKeyPressed(Keys.N))
+            if (e.Key == Keys.N)
             {
                 if (_escenario.Hijos.Count > 0)
                 {
@@ -122,45 +141,42 @@ namespace Proyecto_3D
                 }
             }
 
-
-            float time = (float)e.Time;
-
-            // Traslación (WASD + R/F)
-            float t = 1.0f * time;
-            var transformDestino = _modoActual == ModoTransformacion.Escenario ?
-                    _escenario.Transform : (_objetoSeleccionado?.Transform ?? _escenario.Transform);
-
-            if (KeyboardState.IsKeyDown(Keys.W)) transformDestino.Traslacion += new Vector3(0, 0, -t);
-            if (KeyboardState.IsKeyDown(Keys.S)) transformDestino.Traslacion += new Vector3(0, 0, t);
-            if (KeyboardState.IsKeyDown(Keys.A)) transformDestino.Traslacion += new Vector3(-t, 0, 0);
-            if (KeyboardState.IsKeyDown(Keys.D)) transformDestino.Traslacion += new Vector3(t, 0, 0);
-            if (KeyboardState.IsKeyDown(Keys.R)) transformDestino.Traslacion += new Vector3(0, t, 0);
-            if (KeyboardState.IsKeyDown(Keys.F)) transformDestino.Traslacion += new Vector3(0, -t, 0);
-
-            // Rotación (Q/E/Z/C)
-            float r = 45f * time;
-            if (KeyboardState.IsKeyDown(Keys.Q)) transformDestino.Rotacion.Y -= r;
-            if (KeyboardState.IsKeyDown(Keys.E)) transformDestino.Rotacion.Y += r;
-            if (KeyboardState.IsKeyDown(Keys.Z)) transformDestino.Rotacion.X -= r;            
-            if (KeyboardState.IsKeyDown(Keys.C)) transformDestino.Rotacion.X += r;
-
-            // Escala (T/G)
-            float escDelta = 0f;
-            if (KeyboardState.IsKeyDown(Keys.T)) escDelta = 1f * time;
-            else if (KeyboardState.IsKeyDown(Keys.G)) escDelta = -1f * time;
-
-            if (escDelta != 0f)
+            // === CONTROLES DE ANIMACIÓN ===
+            // Space: Iniciar/Detener grabación
+            if (e.Key == Keys.Space)
             {
-                float factor = 1.0f + escDelta;
-                transformDestino.Escala *= factor;
-                transformDestino.Escala = new Vector3(
-                    MathF.Max(0.1f, transformDestino.Escala.X),
-                    MathF.Max(0.1f, transformDestino.Escala.Y),
-                    MathF.Max(0.1f, transformDestino.Escala.Z)
-                );
+                if (!_recorder.IsRecording)
+                {
+                    string targetName = _modoActual == ModoTransformacion.Escenario ? "Escenario" : _objetoSeleccionado?.Name ?? "Objeto";
+                    _recorder.StartRecording($"Anim_{targetName}");
+                    _modoAnimacion = false; // Modo manual para grabar
+                }else 
+                {
+                    _ultimoClip = _recorder.StopRecording();
+                }
+            }
+
+            // Reproducir última animación
+            if (e.Key == Keys.P)
+            {
+                if (_ultimoClip != null && _ultimoClip.Keyframes.Count > 0)
+                {
+                    _player.Play(_ultimoClip);
+                    _modoAnimacion = true;
+                }
+                else
+                {
+                    Console.WriteLine("⚠️ No hay animación para reproducir. Graba una primero (Space para iniciar).");
+                }
+            }
+
+            // I: Detener animación
+            if (e.Key == Keys.I)
+            {
+                _player.Stop();
+                _modoAnimacion = false;
             }
         }
-
         protected override void OnFramebufferResize(FramebufferResizeEventArgs e)
         {
             base.OnFramebufferResize(e);
@@ -171,6 +187,47 @@ namespace Proyecto_3D
             float aspect = e.Width / (float)e.Height;
             _projection = Matrix4.CreatePerspectiveFieldOfView(
                 MathHelper.DegreesToRadians(60f), aspect, 0.1f, 100f);
+        }
+        private void TransformacionManual(Transform transformDestino, float deltaTime)
+        {            
+                // Traslación (WASD + R/F)
+                float t = 1.0f * deltaTime;
+
+                if (KeyboardState.IsKeyDown(Keys.W)) transformDestino.Traslacion += new Vector3(0, 0, -t);
+                if (KeyboardState.IsKeyDown(Keys.S)) transformDestino.Traslacion += new Vector3(0, 0, t);
+                if (KeyboardState.IsKeyDown(Keys.A)) transformDestino.Traslacion += new Vector3(-t, 0, 0);
+                if (KeyboardState.IsKeyDown(Keys.D)) transformDestino.Traslacion += new Vector3(t, 0, 0);
+                if (KeyboardState.IsKeyDown(Keys.R)) transformDestino.Traslacion += new Vector3(0, t, 0);
+                if (KeyboardState.IsKeyDown(Keys.F)) transformDestino.Traslacion += new Vector3(0, -t, 0);
+
+                // Rotación (Q/E/Z/C)
+                float r = 45f * deltaTime;
+                if (KeyboardState.IsKeyDown(Keys.Q)) transformDestino.Rotacion.Y -= r;
+                if (KeyboardState.IsKeyDown(Keys.E)) transformDestino.Rotacion.Y += r;
+                if (KeyboardState.IsKeyDown(Keys.Z)) transformDestino.Rotacion.X -= r;            
+                if (KeyboardState.IsKeyDown(Keys.C)) transformDestino.Rotacion.X += r;
+
+                // Escala (T/G)
+                float escDelta = 0f;
+                if (KeyboardState.IsKeyDown(Keys.T)) escDelta = 1f * deltaTime;
+                else if (KeyboardState.IsKeyDown(Keys.G)) escDelta = -1f * deltaTime;
+
+                if (escDelta != 0f)
+                {
+                    float factor = 1.0f + escDelta;
+                    transformDestino.Escala *= factor;
+                    transformDestino.Escala = new Vector3(
+                        MathF.Max(0.1f, transformDestino.Escala.X),
+                        MathF.Max(0.1f, transformDestino.Escala.Y),
+                        MathF.Max(0.1f, transformDestino.Escala.Z)
+                    );
+                }
+
+                // Si estamos grabando, capturar el estado actual
+                if (_recorder.IsRecording)
+                {
+                    _recorder.UpdateRecording(deltaTime, transformDestino);
+                }
         }
 
         protected override void OnUnload()
